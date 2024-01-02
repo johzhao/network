@@ -1,8 +1,9 @@
 #ifndef EVENT_POLLER_H
 #define EVENT_POLLER_H
 
-#include <memory>
+#include <functional>
 #include <map>
+#include <memory>
 #include <thread>
 
 #include "utils/buffer.h"
