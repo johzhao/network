@@ -68,11 +68,11 @@ std::string Strings::Trim(const std::string &data, const std::function<bool(char
     return data.substr(start_position, end_position - start_position + 1);
 }
 
-std::string Strings::Hex2Bin(const std::string& str) {
+std::string Strings::Hex2Bin(const std::string &str) {
     std::string result;
     for (size_t i = 0; i < str.length(); i += 2) {
         std::string byte = str.substr(i, 2);
-        char chr = (char)strtol(byte.c_str(), nullptr, 16);
+        char chr = (char) strtol(byte.c_str(), nullptr, 16);
         result.push_back(chr);
     }
     return result;
@@ -81,7 +81,7 @@ std::string Strings::Hex2Bin(const std::string& str) {
 std::string Strings::Bin2Hex(const std::string &data) {
     char temp[3] = {0};
     std::stringstream ss;
-    for (unsigned char i : data) {
+    for (unsigned char i: data) {
         sprintf(temp, "%02x", i);
         ss << temp;
     }

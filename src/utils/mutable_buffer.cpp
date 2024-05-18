@@ -38,7 +38,7 @@ ErrorCode MutableBuffer::SetCapacity(int capacity) {
         }
     } while (false);
 
-    auto buffer = new char [capacity];
+    auto buffer = new char[capacity];
     memcpy(buffer, buffer_, content_size_);
 
     delete[] buffer_;
