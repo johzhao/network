@@ -112,7 +112,7 @@ void Socket::SetOnErrorCallback(OnErrCallback callback) {
 
 void Socket::SetOnAcceptCallback(OnAcceptCallback callback) {
     if (callback == nullptr) {
-        accept_callback_ = [](std::shared_ptr<Socket> &) {};
+        accept_callback_ = [](std::shared_ptr<Socket> &, sockaddr *, int) {};
     } else {
         accept_callback_ = std::move(callback);
     }
@@ -129,11 +129,19 @@ void Socket::SetOnBeforeCreateCallback(OnBeforeCreateCallback callback) {
     }
 }
 
-void Socket::SetOnSentResultCallback(const OnSentResultCallback &callback) {
+void Socket::SetOnSentResultCallback(OnSentResultCallback callback) {
     if (callback == nullptr) {
         sent_result_callback_ = [](Buffer::Ptr &, bool) {};
     } else {
-        sent_result_callback_ = callback;
+        sent_result_callback_ = std::move(callback);
+    }
+}
+
+void Socket::SetOnClosedCallback(OnClosedCallback callback) {
+    if (callback == nullptr) {
+        closed_callback_ = []() {};
+    } else {
+        closed_callback_ = std::move(callback);
     }
 }
 
@@ -201,6 +209,12 @@ void Socket::Close() {
 
     send_queue_.clear();
     sending_buffer_.reset();
+
+    try {
+        closed_callback_();
+    } catch (std::exception &ex) {
+        SPDLOG_ERROR("socket {0} closed callback raised exception '{1}'", ex.what());
+    }
 }
 
 std::string Socket::GetLocalIp() {
@@ -305,7 +319,7 @@ void Socket::OnAcceptEvent() {
     client_socket->RegisterEvent();
 
     try {
-        accept_callback_(client_socket);
+        accept_callback_(client_socket, (sockaddr *)&remote_addr, (int)sin_size);
     } catch (std::exception &ex) {
         SPDLOG_ERROR("socket {0} accept callback raise exception '{1}'", id_, ex.what());
     }
@@ -324,7 +338,7 @@ void Socket::OnReadableEvent() {
 
     while (true) {
         memset(&addr, 0, addr_len);
-        auto read_count = recvfrom(socket_fd_, data, capacity, 0, (struct sockaddr *) &addr, &addr_len);
+        auto read_count = recvfrom(socket_fd_, data, capacity, 0, (sockaddr *) &addr, &addr_len);
         if (read_count < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 // read finished

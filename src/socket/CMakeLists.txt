@@ -3,6 +3,7 @@ add_library(socket STATIC
         poll_thread.cpp
         poll_thread_pool.cpp
         socket_utils.cpp
+        session.cpp
 )
 target_link_libraries(socket PRIVATE
         pthread

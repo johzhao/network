@@ -25,10 +25,11 @@ public:
 
     using OnReadCallback = std::function<void(Buffer::Ptr &buf, sockaddr *addr, int addr_len)>;
     using OnErrCallback = std::function<void(ErrorCode error_code)>;
-    using OnAcceptCallback = std::function<void(std::shared_ptr<Socket> &sock)>;
+    using OnAcceptCallback = std::function<void(std::shared_ptr<Socket> &sock, sockaddr *addr, int addr_len)>;
     using OnBeforeCreateCallback = std::function<std::shared_ptr<Socket>()>;
     //using OnFlushCallback = std::function<bool()>;
     using OnSentResultCallback = std::function<void(Buffer::Ptr &buffer, bool send_success)>;
+    using OnClosedCallback = std::function<void()>;
 
 public:
     int GetId() const;
@@ -114,7 +115,9 @@ public:
      * 设置发送buffer结果回调
      * @param cb 回调
      */
-    void SetOnSentResultCallback(const OnSentResultCallback &callback);
+    void SetOnSentResultCallback(OnSentResultCallback callback);
+
+    void SetOnClosedCallback(OnClosedCallback callback);
 
     ////////////发送数据相关接口////////////
 
@@ -274,6 +277,7 @@ private:
     OnAcceptCallback accept_callback_;
     OnBeforeCreateCallback before_create_callback_;
     OnSentResultCallback sent_result_callback_;
+    OnClosedCallback closed_callback_;
     std::mutex send_queue_mutex_;
     std::list<std::shared_ptr<BufferSock>> send_queue_;
     std::mutex sending_buffer_mutex_;

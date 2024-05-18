@@ -1,5 +1,7 @@
 #include "poll_thread.h"
 
+#include <unistd.h>
+
 #include "spdlog/spdlog.h"
 
 static constexpr int kMaxEpollEventCount = 64;
