@@ -7,10 +7,8 @@
 
 #include "socket/socket.h"
 #include "socket/poll_thread.h"
-#include "socket/poll_thread_pool.h"
 
 static constexpr int kServerPort = 10000;
-static constexpr int kPackageSize = 1024;
 
 bool stop = false;
 std::mutex mutex;
@@ -19,8 +17,7 @@ std::condition_variable condition;
 class Session {
 public:
     explicit Session(std::shared_ptr<Socket> &socket)
-            : socket_(socket),
-              buffer_(std::make_shared<MutableBuffer>(1024 * 1024)) {
+            : socket_(socket) {
         socket_->SetOnReadCallback([this](Buffer::Ptr &buf, sockaddr *, int) {
             OnReceiveData(buf);
         });
@@ -28,21 +25,11 @@ public:
 
 public:
     void OnReceiveData(Buffer::Ptr &buf) {
-        buffer_->AppendData(buf->GetData(), buf->GetContentSize());
-        if (buffer_->GetContentSize() < kPackageSize) {
-            return;
-        }
-
-        auto data = std::make_shared<CopyBuffer>(buffer_->GetData(), kPackageSize);
-        buffer_->ConsumeData(kPackageSize);
-
-        std::shared_ptr<Buffer> buffer = data;
-        socket_->Send(buffer);
+        socket_->Send(buf);
     }
 
 private:
     std::shared_ptr<Socket> socket_;
-    std::shared_ptr<MutableBuffer> buffer_;
 };
 
 static std::vector<std::shared_ptr<Session>> sessions;
@@ -54,25 +41,20 @@ void HandleNewConnection(std::shared_ptr<Socket> &sock) {
     sessions.push_back(session);
 }
 
-std::shared_ptr<Socket> BeforeCreateCallback() {
-    static int socket_id = 100;
-
-    auto poll_thread = PollThreadPool::GetInstance()->GetPollThread();
-    return std::make_shared<Socket>(++socket_id, poll_thread);
-}
-
 ErrorCode test_tcp() {
     ErrorCode error_code;
 
     SPDLOG_INFO("create the poll thread");
 
-    PollThreadPool::Initialize(4);
+    auto poll_thread = std::make_shared<PollThread>(0);
+    error_code = poll_thread->Initialize();
+    if (error_code != Success) {
+        return error_code;
+    }
 
     SPDLOG_INFO("create the tcp server");
 
-    auto poll_thread = PollThreadPool::GetInstance()->GetPollThread();
     auto server_socket = std::make_shared<Socket>(1, poll_thread);
-    server_socket->SetOnBeforeCreateCallback(BeforeCreateCallback);
     error_code = server_socket->Listen(kServerPort);
     if (error_code != Success) {
         return error_code;
@@ -86,6 +68,8 @@ ErrorCode test_tcp() {
         return stop;
     });
 
+    sessions.clear();
+
     sleep(1);
 
     return Success;
@@ -96,7 +80,7 @@ void handleSignalEvent(int) {
     condition.notify_all();
 }
 
-int main(int argc, char *argv[]) {
+int main(int, char *[]) {
     auto logger = spdlog::default_logger();
     logger->set_level(spdlog::level::trace);
 
@@ -104,5 +88,8 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, handleSignalEvent);
 
     int ret = test_tcp() == Success ? 0 : -1;
+
+    spdlog::shutdown();
+
     return ret;
 }
