@@ -18,7 +18,8 @@ static int get_uv_error();
 
 static int uv_translate_posix_error(int err);
 
-ErrorCode SocketUtils::connect(int &fd, const char *host, uint16_t port, bool async, const char *local_ip, uint16_t local_port) {
+ErrorCode SocketUtils::connect(int &fd, const char *host, uint16_t port, bool async,
+                               const char *local_ip, uint16_t local_port) {
     sockaddr_in dest_addr{};
     memset(&dest_addr, 0, sizeof(dest_addr));
 

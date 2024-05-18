@@ -164,7 +164,7 @@ ssize_t Socket::SendTo(Buffer::Ptr &buf, const char *host, uint16_t port, bool t
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = inet_addr(host);
 
-    return Send(buf, (sockaddr *)&addr, addr_len, try_flush);
+    return Send(buf, (sockaddr *) &addr, addr_len, try_flush);
 }
 
 ssize_t Socket::Send(Buffer::Ptr &buf, sockaddr *addr, socklen_t addr_len, bool try_flush) {
@@ -321,7 +321,7 @@ void Socket::OnAcceptEvent() {
     client_socket->RegisterEvent();
 
     try {
-        accept_callback_(client_socket, (sockaddr *)&remote_addr, (int)sin_size);
+        accept_callback_(client_socket, (sockaddr *) &remote_addr, (int) sin_size);
     } catch (std::exception &ex) {
         SPDLOG_ERROR("socket {0} accept callback raise exception '{1}'", id_, ex.what());
     }
@@ -379,7 +379,7 @@ void Socket::OnWritableEvent() {
 
         int err = -1;
         socklen_t len = sizeof(err);
-        int ret = getsockopt(socket_fd_, SOL_SOCKET, SO_ERROR , &err, &len);
+        int ret = getsockopt(socket_fd_, SOL_SOCKET, SO_ERROR, &err, &len);
         if (ret < 0) {
             SPDLOG_ERROR("socket {0} get socket error failed with error {1}, description '{2}'",
                          id_, errno, strerror(errno));
@@ -411,7 +411,7 @@ void Socket::OnErrorEvent() {
 
     int err = -1;
     socklen_t len = sizeof(err);
-    int ret = getsockopt(socket_fd_, SOL_SOCKET, SO_ERROR , &err, &len);
+    int ret = getsockopt(socket_fd_, SOL_SOCKET, SO_ERROR, &err, &len);
     if (ret < 0) {
         SPDLOG_ERROR("socket {0} get socket error failed with error {1}, description '{2}'",
                      id_, errno, strerror(errno));

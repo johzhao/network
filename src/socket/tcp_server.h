@@ -15,7 +15,8 @@ public:
 
     ~TcpServer();
 
-    using SessionCreator = std::function<std::shared_ptr<Session>(const std::string &id, std::shared_ptr<Socket> &socket)>;
+    using SessionCreator = std::function<std::shared_ptr<Session>(const std::string &id,
+                                                                  std::shared_ptr<Socket> &socket)>;
 
     using NewSessionCallback = std::function<void(std::shared_ptr<Session> &)>;
 

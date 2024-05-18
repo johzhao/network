@@ -30,6 +30,7 @@ void TcpServer::SetNewSessionCallback(TcpServer::NewSessionCallback callback) {
         new_session_callback_ = std::move(callback);
     }
 }
+
 ErrorCode TcpServer::Start(uint16_t port, const std::string &host, int backlog) {
     if (listen_socket_) {
         return Already_Initialized;
