@@ -15,6 +15,7 @@ Socket::Socket(std::string id, std::shared_ptr<PollThread> &poll_thread)
     SetOnAcceptCallback(nullptr);
     SetOnBeforeCreateCallback(nullptr);
     SetOnSentResultCallback(nullptr);
+    SetOnClosedCallback(nullptr);
 }
 
 Socket::~Socket() {
@@ -59,8 +60,9 @@ void Socket::Connect(const std::string &host, uint16_t port, const OnErrCallback
 }
 
 ErrorCode Socket::Listen(uint16_t port, const std::string &local_ip, int backlog) {
-    SPDLOG_DEBUG("socket {0} listen on {1}:{2}", id_, local_ip, port);
     Close();
+
+    SPDLOG_DEBUG("socket {0} listen on {1}:{2}", id_, local_ip, port);
 
     auto error_code = SocketUtils::listen(socket_fd_, port, local_ip.c_str(), backlog);
     if (error_code != Success) {
@@ -213,7 +215,7 @@ void Socket::Close() {
     try {
         closed_callback_();
     } catch (std::exception &ex) {
-        SPDLOG_ERROR("socket {0} closed callback raised exception '{1}'", ex.what());
+        SPDLOG_ERROR("socket {0} closed callback raised exception '{1}'", id_, ex.what());
     }
 }
 
