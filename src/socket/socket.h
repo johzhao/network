@@ -19,7 +19,7 @@ enum SocketType {
 
 class Socket : public std::enable_shared_from_this<Socket> {
 public:
-    explicit Socket(int id, std::shared_ptr<PollThread> &poll_thread);
+    explicit Socket(std::string id, std::shared_ptr<PollThread> &poll_thread);
 
     ~Socket();
 
@@ -32,7 +32,7 @@ public:
     using OnClosedCallback = std::function<void()>;
 
 public:
-    int GetId() const;
+    const std::string &GetId() const;
 
     /**
      * 创建tcp客户端并异步连接服务器
@@ -267,7 +267,7 @@ private:
     void Flush(bool by_poll_thread);
 
 private:
-    int id_;
+    std::string id_;
     std::shared_ptr<PollThread> poll_thread_;
     SocketType socket_type_ = Socket_Invalid;
     int socket_fd_ = 0;

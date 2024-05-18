@@ -4,9 +4,11 @@ add_library(socket STATIC
         poll_thread_pool.cpp
         socket_utils.cpp
         session.cpp
+        tcp_server.cpp
 )
 target_link_libraries(socket PRIVATE
         pthread
         spdlog
         utils
+        fmt
 )

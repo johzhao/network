@@ -6,8 +6,8 @@
 #include "utils/copy_buffer.h"
 #include "socket_utils.h"
 
-Socket::Socket(int id, std::shared_ptr<PollThread> &poll_thread)
-        : id_(id), poll_thread_(poll_thread) {
+Socket::Socket(std::string id, std::shared_ptr<PollThread> &poll_thread)
+        : id_(std::move(id)), poll_thread_(poll_thread) {
     SPDLOG_DEBUG("create socket {0}", id_);
 
     SetOnReadCallback(nullptr);
@@ -23,7 +23,7 @@ Socket::~Socket() {
     SPDLOG_DEBUG("socket {0} was de-constructed", id_);
 }
 
-int Socket::GetId() const {
+const std::string &Socket::GetId() const {
     return id_;
 }
 
@@ -122,7 +122,7 @@ void Socket::SetOnBeforeCreateCallback(OnBeforeCreateCallback callback) {
     if (callback == nullptr) {
         before_create_callback_ = [this]() {
             auto client_id = ++next_accepted_id_;
-            return std::make_shared<Socket>(id_ + client_id, poll_thread_);
+            return std::make_shared<Socket>(fmt::format("{}-{}", id_, client_id), poll_thread_);
         };
     } else {
         before_create_callback_ = std::move(callback);

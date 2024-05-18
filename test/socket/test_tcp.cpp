@@ -41,18 +41,18 @@ ErrorCode test_tcp() {
 
     SPDLOG_INFO("create the tcp server");
 
-    auto server_socket = std::make_shared<Socket>(1000, poll_thread);
+    auto server_socket = std::make_shared<Socket>("1000", poll_thread);
     error_code = server_socket->Listen(kServerPort);
     if (error_code != Success) {
         return error_code;
     }
-    server_socket->SetOnAcceptCallback([](std::shared_ptr<Socket> &sock) {
+    server_socket->SetOnAcceptCallback([](std::shared_ptr<Socket> &sock, sockaddr *addr, int addr_len) {
         HandleNewConnection(sock);
     });
 
     SPDLOG_INFO("create the tcp client");
 
-    auto client_socket = std::make_shared<Socket>(1, poll_thread);
+    auto client_socket = std::make_shared<Socket>("1", poll_thread);
     client_socket->Connect("172.16.100.156", kServerPort, [client_socket](ErrorCode error_code) {
         SPDLOG_INFO("client connect to server result was {0}", int(error_code));
         if (error_code != Success) {
