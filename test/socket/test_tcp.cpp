@@ -2,6 +2,7 @@
 #include <memory>
 #include <netinet/in.h>
 #include <vector>
+#include <future>
 
 #include "spdlog/spdlog.h"
 
@@ -41,7 +42,7 @@ ErrorCode test_tcp() {
 
     SPDLOG_INFO("create the tcp server");
 
-    auto server_socket = std::make_shared<Socket>("1000", poll_thread);
+    auto server_socket = std::make_shared<Socket>("server", poll_thread);
     error_code = server_socket->Listen(kServerPort);
     if (error_code != Success) {
         return error_code;
@@ -52,21 +53,14 @@ ErrorCode test_tcp() {
 
     SPDLOG_INFO("create the tcp client");
 
-    auto client_socket = std::make_shared<Socket>("1", poll_thread);
-    client_socket->Connect("172.16.100.156", kServerPort, [client_socket](ErrorCode error_code) {
+    auto client_socket = std::make_shared<Socket>("client", poll_thread);
+    client_socket->Connect("127.0.0.1", kServerPort, [client_socket](ErrorCode error_code) {
         SPDLOG_INFO("client connect to server result was {0}", int(error_code));
         if (error_code != Success) {
             return;
         }
 
         SPDLOG_INFO("client send data to server");
-
-        sockaddr_in addr{};
-        auto addr_len = sizeof(addr);
-        memset(&addr, 0, addr_len);
-        addr.sin_family = AF_INET;
-        addr.sin_port = htons(kServerPort);
-        addr.sin_addr.s_addr = inet_addr("172.16.100.156");
 
         auto data = "abcdefg";
         auto buffer = std::make_shared<Buffer>(data, strlen(data));
@@ -76,7 +70,9 @@ ErrorCode test_tcp() {
         auto data = std::make_shared<CopyBuffer>(buf);
         SPDLOG_INFO("client received data: '{0}'", data->GetData());
 
-        client_socket->Close();
+        auto _ = std::async(std::launch::deferred, [client_socket]() {
+            client_socket->Close();
+        });
     });
 
     sleep(1);

@@ -24,7 +24,7 @@ ErrorCode test_udp() {
 
     SPDLOG_INFO("create the udp server");
 
-    auto server_socket = std::make_shared<Socket>("0", poll_thread);
+    auto server_socket = std::make_shared<Socket>("server", poll_thread);
     error_code = server_socket->BindUdpSock(kServerPort);
     if (error_code != Success) {
         return error_code;
@@ -38,7 +38,7 @@ ErrorCode test_udp() {
 
     SPDLOG_INFO("create the udp client");
 
-    auto client_socket = std::make_shared<Socket>("1", poll_thread);
+    auto client_socket = std::make_shared<Socket>("client", poll_thread);
     error_code = client_socket->BindUdpSock(kClientPort);
     if (error_code != Success) {
         return error_code;
