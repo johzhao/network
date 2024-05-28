@@ -30,7 +30,7 @@ public:
     void Stop();
 
 private:
-    void CreateListenSocket();
+    void SetListenSocketCallback();
 
     void OnError(ErrorCode error_code);
 

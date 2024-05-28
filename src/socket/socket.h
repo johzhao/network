@@ -40,6 +40,8 @@ public:
 
     ErrorCode Bind(uint16_t port, const std::string &local_ip = "0.0.0.0");
 
+    ErrorCode Bind(uint16_t min_port, uint16_t max_port, uint16_t &local_port, const std::string &local_ip = "0.0.0.0");
+
     /**
      * 创建tcp客户端并异步连接服务器
      * @param host 目标服务器ip

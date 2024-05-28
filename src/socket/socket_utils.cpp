@@ -185,6 +185,10 @@ static ErrorCode bind_sock4(int fd, const char *ifr_ip, uint16_t port) {
     if (::bind(fd, (struct sockaddr *) &addr, sizeof(sockaddr)) == -1) {
         SPDLOG_ERROR("socket bind to {0}:{1} failed with error {2}, description '{3}'",
                      ifr_ip, port, errno, strerror(errno));
+        if (errno == EADDRINUSE) {
+            return Socket_Address_In_Use;
+        }
+
         return Socket_Bind_Failed;
     }
 

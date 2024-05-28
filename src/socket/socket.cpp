@@ -108,6 +108,23 @@ ErrorCode Socket::Bind(uint16_t port, const std::string &local_ip) {
     return Success;
 }
 
+ErrorCode Socket::Bind(uint16_t min_port, uint16_t max_port, uint16_t &local_port, const std::string &local_ip) {
+    ErrorCode error_code;
+    for (uint16_t port = min_port; port <= max_port; ++port) {
+        error_code = SocketUtils::bind(socket_fd_, port, local_ip.c_str());
+        if (error_code == Success) {
+            local_port = port;
+            return Success;
+        } else if (error_code == Socket_Address_In_Use) {
+            continue;
+        } else {
+            break;
+        }
+    }
+
+    return error_code;
+}
+
 void Socket::Connect(const std::string &host, uint16_t port, const OnErrCallback &error_callback,
                      float timeout_sec) {
     SPDLOG_DEBUG("socket {0} connect to {1}:{2}", id_, host, port);

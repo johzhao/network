@@ -32,15 +32,29 @@ void TcpServer::SetNewSessionCallback(TcpServer::NewSessionCallback callback) {
 }
 
 ErrorCode TcpServer::Start(uint16_t port, const std::string &host, int backlog) {
+    ErrorCode error_code;
     if (listen_socket_) {
         return Already_Initialized;
     }
 
-    CreateListenSocket();
-
-    auto error_code = listen_socket_->Listen(backlog);
+    listen_socket_ = std::make_shared<Socket>(id_, poll_thread_);
+    error_code = listen_socket_->Initialize(SocketType::TcpServer, true);
     if (error_code != Success) {
-        SPDLOG_ERROR("tcp server {} listen to {}:{} failed with error {}", id_, host, port, int(error_code));
+        SPDLOG_ERROR("tcp server {} initialize failed with error 0x{:08X}", id_, int(error_code));
+        return error_code;
+    }
+
+    SetListenSocketCallback();
+
+    error_code = listen_socket_->Bind(port, host);
+    if (error_code != Success) {
+        SPDLOG_ERROR("tcp server {} bind to {}:{} failed with error 0x{:08X}", id_, host, port, int(error_code));
+        return error_code;
+    }
+
+    error_code = listen_socket_->Listen(backlog);
+    if (error_code != Success) {
+        SPDLOG_ERROR("tcp server {} listen with backlog {} failed with error 0x{:08X}", id_, backlog, int(error_code));
         Stop();
 
         return error_code;
@@ -57,9 +71,7 @@ void TcpServer::Stop() {
     }
 }
 
-void TcpServer::CreateListenSocket() {
-    listen_socket_ = std::make_shared<Socket>(id_, poll_thread_);
-
+void TcpServer::SetListenSocketCallback() {
     auto weak_self = weak_from_this();
     listen_socket_->SetOnErrorCallback([weak_self](ErrorCode error_code) {
         auto strong_self = weak_self.lock();

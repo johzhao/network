@@ -10,6 +10,7 @@ enum ErrorCode {
     Socket_Error_Start = 0x00010000,
     Socket_Create_Failed = 0x00010101,
     Socket_Bind_Failed,
+    Socket_Address_In_Use,
     Socket_Connect_Failed,
     Socket_Connect_In_Progress,
     Socket_Listen_Failed,
