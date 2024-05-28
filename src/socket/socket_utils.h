@@ -10,38 +10,25 @@ static constexpr int SOCKET_DEFAULT_BUF_SIZE = 256 * 1024;
 
 class SocketUtils {
 public:
+    static ErrorCode bind(int fd, uint16_t port, const char *local_ip = "0.0.0.0");
+
     /**
     * 创建tcp客户端套接字并连接服务器
     * @param fd 套接字
     * @param host 服务器ip或域名
     * @param port 服务器端口号
     * @param async 是否异步连接
-    * @param local_ip 绑定的本地网卡ip
-    * @param local_port 绑定的本地端口号
     * @return ErrorCode
     */
-    static ErrorCode connect(int &fd, const char *host, uint16_t port, bool async = true,
-                             const char *local_ip = "0.0.0.0", uint16_t local_port = 0);
+    static ErrorCode connect(int fd, const char *host, uint16_t port, bool async = true);
 
     /**
      * 创建tcp监听套接字
      * @param fd 套接字
-     * @param port 监听的本地端口
-     * @param local_ip 绑定的本地网卡ip
      * @param back_log accept列队长度
      * @return ErrorCode
      */
-    static ErrorCode listen(int &fd, uint16_t port, const char *local_ip = "0.0.0.0", int back_log = 1024);
-
-    /**
-     * 创建udp套接字
-     * @param fd 套接字
-     * @param port 监听的本地端口
-     * @param local_ip 绑定的本地网卡ip
-     * @param enable_reuse 是否允许重复bind端口
-     * @return ErrorCode
-     */
-    static ErrorCode bindUdpSock(int &fd, uint16_t port, const char *local_ip = "0.0.0.0", bool enable_reuse = true);
+    static ErrorCode listen(int fd, int back_log = 1024);
 
     /**
      * 开启TCP_NODELAY，降低TCP交互延时

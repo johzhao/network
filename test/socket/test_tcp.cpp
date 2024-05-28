@@ -1,8 +1,6 @@
-#include <arpa/inet.h>
 #include <memory>
 #include <netinet/in.h>
 #include <vector>
-#include <future>
 
 #include "spdlog/spdlog.h"
 
@@ -42,18 +40,39 @@ ErrorCode test_tcp() {
 
     SPDLOG_INFO("create the tcp server");
 
-    auto server_socket = std::make_shared<Socket>("server", poll_thread);
-    error_code = server_socket->Listen(kServerPort);
+    auto server_socket = std::make_shared<Socket>("server-01", poll_thread);
+    error_code = server_socket->Initialize(SocketType::TcpServer, true);
     if (error_code != Success) {
         return error_code;
     }
+
+    error_code = server_socket->Bind(kServerPort);
+    if (error_code != Success) {
+        return error_code;
+    }
+
     server_socket->SetOnAcceptCallback([](std::shared_ptr<Socket> &sock, sockaddr *addr, int addr_len) {
         HandleNewConnection(sock);
     });
 
+    error_code = server_socket->Listen();
+    if (error_code != Success) {
+        return error_code;
+    }
+
     SPDLOG_INFO("create the tcp client");
 
-    auto client_socket = std::make_shared<Socket>("client", poll_thread);
+    auto client_socket = std::make_shared<Socket>("client-01", poll_thread);
+    error_code = client_socket->Initialize(SocketType::TcpClient, false);
+    if (error_code != Success) {
+        return error_code;
+    }
+
+    client_socket->SetOnReadCallback([client_socket](Buffer::Ptr &buf, sockaddr *addr, int addr_len) {
+        auto data = std::make_shared<CopyBuffer>(buf);
+        SPDLOG_INFO("client received data: '{0}'", data->GetData());
+    });
+
     client_socket->Connect("127.0.0.1", kServerPort, [client_socket](ErrorCode error_code) {
         SPDLOG_INFO("client connect to server result was {0}", int(error_code));
         if (error_code != Success) {
@@ -65,14 +84,6 @@ ErrorCode test_tcp() {
         auto data = "abcdefg";
         auto buffer = std::make_shared<Buffer>(data, strlen(data));
         client_socket->Send(buffer);
-    });
-    client_socket->SetOnReadCallback([client_socket](Buffer::Ptr &buf, sockaddr *addr, int addr_len) {
-        auto data = std::make_shared<CopyBuffer>(buf);
-        SPDLOG_INFO("client received data: '{0}'", data->GetData());
-
-        auto _ = std::async(std::launch::deferred, [client_socket]() {
-            client_socket->Close();
-        });
     });
 
     sleep(1);

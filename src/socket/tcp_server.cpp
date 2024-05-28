@@ -38,7 +38,7 @@ ErrorCode TcpServer::Start(uint16_t port, const std::string &host, int backlog) 
 
     CreateListenSocket();
 
-    auto error_code = listen_socket_->Listen(port, host, backlog);
+    auto error_code = listen_socket_->Listen(backlog);
     if (error_code != Success) {
         SPDLOG_ERROR("tcp server {} listen to {}:{} failed with error {}", id_, host, port, int(error_code));
         Stop();

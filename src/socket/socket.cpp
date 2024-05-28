@@ -28,13 +28,90 @@ const std::string &Socket::GetId() const {
     return id_;
 }
 
-void Socket::Connect(const std::string &host, uint16_t port, const OnErrCallback &error_callback,
-                     float timeout_sec, const std::string &local_ip, uint16_t local_port) {
-    SPDLOG_DEBUG("socket {0} connect to {1}:{2}", id_, host, port);
-    Close();
+int Socket::GetRawSocket() const {
+    return socket_fd_;
+}
 
-    auto error_code = SocketUtils::connect(socket_fd_, host.c_str(), port, true,
-                                           local_ip.c_str(), local_port);
+ErrorCode Socket::Initialize(SocketType type, bool async) {
+    switch (type) {
+        case SocketType::TcpServer: {
+            socket_fd_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+            if (socket_fd_ < 0) {
+                SPDLOG_ERROR("socket {} construct tcp socket failed with error {}, description '{}'",
+                             id_, errno, strerror(errno));
+
+                return Socket_Create_Failed;
+            }
+
+            SocketUtils::setReuseable(socket_fd_);
+            SocketUtils::setNoBlocked(socket_fd_, async);
+            SocketUtils::setCloExec(socket_fd_);
+            break;
+        }
+        case SocketType::TcpClient: {
+            socket_fd_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+            if (socket_fd_ < 0) {
+                SPDLOG_ERROR("socket {} construct tcp socket failed with error {}, description '{}'",
+                             id_, errno, strerror(errno));
+
+                return Socket_Create_Failed;
+            }
+
+            SocketUtils::setReuseable(socket_fd_);
+            SocketUtils::setNoSigpipe(socket_fd_);
+            SocketUtils::setNoBlocked(socket_fd_, async);
+            SocketUtils::setNoDelay(socket_fd_);
+            SocketUtils::setSendBuf(socket_fd_, SOCKET_DEFAULT_BUF_SIZE);
+            SocketUtils::setRecvBuf(socket_fd_, SOCKET_DEFAULT_BUF_SIZE);
+            SocketUtils::setCloseWait(socket_fd_);
+            SocketUtils::setCloExec(socket_fd_);
+            break;
+        }
+        case SocketType::Udp: {
+            socket_fd_ = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+            if (socket_fd_ < 0) {
+                SPDLOG_ERROR("socket {} construct udp socket failed with error {}, description '{}'",
+                             id_, errno, strerror(errno));
+
+                return Socket_Create_Failed;
+            }
+
+            SocketUtils::setReuseable(socket_fd_);
+            SocketUtils::setNoSigpipe(socket_fd_);
+            SocketUtils::setNoBlocked(socket_fd_, async);
+            SocketUtils::setSendBuf(socket_fd_, SOCKET_DEFAULT_BUF_SIZE);
+            SocketUtils::setRecvBuf(socket_fd_, SOCKET_DEFAULT_BUF_SIZE);
+            SocketUtils::setCloseWait(socket_fd_);
+            SocketUtils::setCloExec(socket_fd_);
+            break;
+        }
+        default: {
+            SPDLOG_ERROR("socket {} create with invalid socket type {}", id_, int(type));
+            return Socket_Create_Failed;
+        }
+    }
+
+    socket_type_ = type;
+    is_async_ = async;
+
+    return Success;
+}
+
+ErrorCode Socket::Bind(uint16_t port, const std::string &local_ip) {
+    auto ret = SocketUtils::bind(socket_fd_, port, local_ip.c_str());
+    if (ret != Success) {
+        SPDLOG_ERROR("socket {} bind to {}:{} failed with error 0x{:08X}",
+                     id_, local_ip, port, int(ret));
+        return ret;
+    }
+
+    return Success;
+}
+
+void Socket::Connect(const std::string &host, uint16_t port, const OnErrCallback &error_callback,
+                     float timeout_sec) {
+    SPDLOG_DEBUG("socket {0} connect to {1}:{2}", id_, host, port);
+    auto error_code = SocketUtils::connect(socket_fd_, host.c_str(), port, is_async_);
     if (error_code != Success) {
         if (error_code == Socket_Connect_In_Progress) {
             SPDLOG_DEBUG("socket {0} was connecting...", id_);
@@ -42,56 +119,40 @@ void Socket::Connect(const std::string &host, uint16_t port, const OnErrCallback
             connect_callback_ = error_callback;
         } else {
             SPDLOG_ERROR("socket {0} connect to {1}:{2} failed with code {3}", id_, host, port, int(error_code));
-
-            Close();
             error_callback(error_code);
 
             return;
         }
-
-        socket_type_ = Socket_Tcp_Client;
         RegisterEvent();
     } else {
-        socket_type_ = Socket_Tcp_Client;
         RegisterEvent();
 
         error_callback(Success);
     }
 }
 
-ErrorCode Socket::Listen(uint16_t port, const std::string &local_ip, int backlog) {
-    Close();
+ErrorCode Socket::Listen(int backlog) {
+    SPDLOG_DEBUG("socket {0} start listen", id_);
+    switch (socket_type_) {
+        case SocketType::TcpServer: {
+            auto error_code = SocketUtils::listen(socket_fd_, backlog);
+            if (error_code != Success) {
+                SPDLOG_ERROR("socket {} listen failed with error 0x{:08X}", id_, int(error_code));
 
-    SPDLOG_DEBUG("socket {0} listen on {1}:{2}", id_, local_ip, port);
+                return error_code;
+            }
 
-    auto error_code = SocketUtils::listen(socket_fd_, port, local_ip.c_str(), backlog);
-    if (error_code != Success) {
-        SPDLOG_ERROR("socket {0} listen on {1}:{2} failed with error {3}", id_, local_ip, port, int(error_code));
-        Close();
-
-        return error_code;
+            RegisterEvent();
+            break;
+        }
+        case SocketType::Udp: {
+            RegisterEvent();
+            break;
+        }
+        default: {
+            break;
+        }
     }
-
-    socket_type_ = Socket_Tcp_Server;
-    RegisterEvent();
-
-    return Success;
-}
-
-ErrorCode Socket::BindUdpSock(uint16_t port, const std::string &local_ip, bool enable_reuse) {
-    SPDLOG_DEBUG("socket {0} bind udp socket on {1}:{2}", id_, local_ip, port);
-    Close();
-
-    auto error_code = SocketUtils::bindUdpSock(socket_fd_, port, local_ip.c_str(), enable_reuse);
-    if (error_code != Success) {
-        SPDLOG_ERROR("socket {0} bind udp at {1}:{2} failed with error {3}", id_, local_ip, port, int(error_code));
-        Close();
-
-        return error_code;
-    }
-
-    socket_type_ = Socket_Udp;
-    RegisterEvent();
 
     return Success;
 }
@@ -206,7 +267,7 @@ void Socket::Close() {
         socket_fd_ = 0;
     }
 
-    socket_type_ = Socket_Invalid;
+    socket_type_ = SocketType::Invalid;
     available_send_ = false;
 
     send_queue_.clear();
@@ -241,9 +302,9 @@ uint16_t Socket::GetPeerPort() {
 
 void Socket::RegisterEvent() {
     int event = 0;
-    if (socket_type_ == Socket_Tcp_Server) {
+    if (socket_type_ == SocketType::TcpServer) {
         event = Event_Readable | Event_Error;
-    } else if (socket_type_ == Socket_Tcp_Client || socket_type_ == Socket_Udp) {
+    } else if (socket_type_ == SocketType::TcpClient || socket_type_ == SocketType::Udp) {
         event = Event_Readable | Event_Writable | Event_Error;
     }
 
@@ -278,7 +339,7 @@ void Socket::UnRegisterEvent() {
 
 void Socket::OnPollEvent(int event) {
     if (event & Event_Readable) {
-        if (socket_type_ == Socket_Tcp_Server) {
+        if (socket_type_ == SocketType::TcpServer) {
             OnAcceptEvent();
         } else {
             OnReadableEvent();
@@ -317,7 +378,7 @@ void Socket::OnAcceptEvent() {
 
     auto client_socket = before_create_callback_();
     client_socket->socket_fd_ = client_fd;
-    client_socket->socket_type_ = Socket_Tcp_Client;
+    client_socket->socket_type_ = SocketType::TcpClient;
     client_socket->RegisterEvent();
 
     try {
@@ -475,7 +536,7 @@ void Socket::Flush(bool by_poll_thread) {
 
             SPDLOG_DEBUG("socket {0} send data with {1} bytes", id_, size);
 
-            if (socket_type_ == Socket_Udp) {
+            if (socket_type_ == SocketType::Udp) {
                 sent_count = ::sendto(socket_fd_, data, size, send_flags_,
                                       sending_buffer_->GetAddress(), sending_buffer_->GetAddressLength());
             } else {

@@ -18,8 +18,11 @@ static int get_uv_error();
 
 static int uv_translate_posix_error(int err);
 
-ErrorCode SocketUtils::connect(int &fd, const char *host, uint16_t port, bool async,
-                               const char *local_ip, uint16_t local_port) {
+ErrorCode SocketUtils::bind(int fd, uint16_t port, const char *local_ip) {
+    return bind_sock4(fd, local_ip, port);
+}
+
+ErrorCode SocketUtils::connect(int fd, const char *host, uint16_t port, bool async) {
     sockaddr_in dest_addr{};
     memset(&dest_addr, 0, sizeof(dest_addr));
 
@@ -27,104 +30,28 @@ ErrorCode SocketUtils::connect(int &fd, const char *host, uint16_t port, bool as
     dest_addr.sin_port = htons(port);
     dest_addr.sin_addr.s_addr = inet_addr(host);
 
-    fd = socket(dest_addr.sin_family, SOCK_STREAM, IPPROTO_TCP);
-    if (fd < 0) {
-        SPDLOG_ERROR("create socket failed with error {0}, description '{1}",
-                     errno, strerror(errno));
-
-        return Socket_Create_Failed;
-    }
-
-    setReuseable(fd);
-    setNoSigpipe(fd);
-    setNoBlocked(fd, async);
-    setNoDelay(fd);
-    setSendBuf(fd, SOCKET_DEFAULT_BUF_SIZE);
-    setRecvBuf(fd, SOCKET_DEFAULT_BUF_SIZE);
-    setCloseWait(fd);
-    setCloExec(fd);
-
-    auto ret = bind_sock4(fd, local_ip, local_port);
-    if (ret != Success) {
-        close(fd);
-
-        return ret;
-    }
-
     if (::connect(fd, (sockaddr *) &dest_addr, sizeof(sockaddr)) == 0) {
         //同步连接成功
         return Success;
     }
 
-//    if (async /*&& get_uv_error() == UV_EAGAIN*/) {
-//        //异步连接成功
-//        return socket_fd;
-//    }
-    if (errno == EINPROGRESS) {
+    if (async && errno == EINPROGRESS) {
+        //异步连接成功
         return Socket_Connect_In_Progress;
     }
 
     SPDLOG_ERROR("socket connect to {0}:{1} failed with error {2}, description '{3}'",
                  host, port, errno, strerror(errno));
 
-    close(fd);
-
     return Socket_Connect_Failed;
 }
 
-ErrorCode SocketUtils::listen(int &fd, uint16_t port, const char *local_ip, int back_log) {
-    if ((fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
-        SPDLOG_ERROR("create socket failed with error {0}, description '{1}",
-                     errno, strerror(errno));
-
-        return Socket_Create_Failed;
-    }
-
-    setReuseable(fd, true);
-    setNoBlocked(fd);
-    setCloExec(fd);
-
-    auto ret = bind_sock4(fd, local_ip, port);
-    if (ret != Success) {
-        close(fd);
-
-        return ret;
-    }
-
+ErrorCode SocketUtils::listen(int fd, int back_log) {
     if (::listen(fd, back_log) == -1) {
         SPDLOG_ERROR("socket listen with back log {0} failed with error {1}, description '{2}'",
                      back_log, errno, strerror(errno));
-        close(fd);
 
         return Socket_Listen_Failed;
-    }
-
-    return Success;
-}
-
-ErrorCode SocketUtils::bindUdpSock(int &fd, uint16_t port, const char *local_ip, bool enable_reuse) {
-    if ((fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
-        SPDLOG_ERROR("create socket failed with error {0}, description '{1}",
-                     errno, strerror(errno));
-
-        return Socket_Create_Failed;
-    }
-
-    if (enable_reuse) {
-        setReuseable(fd);
-    }
-    setNoSigpipe(fd);
-    setNoBlocked(fd);
-    setSendBuf(fd, SOCKET_DEFAULT_BUF_SIZE);
-    setRecvBuf(fd, SOCKET_DEFAULT_BUF_SIZE);
-    setCloseWait(fd);
-    setCloExec(fd);
-
-    auto ret = bind_sock4(fd, local_ip, port);
-    if (ret != Success) {
-        close(fd);
-
-        return ret;
     }
 
     return Success;

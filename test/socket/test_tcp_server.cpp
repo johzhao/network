@@ -54,14 +54,22 @@ ErrorCode test_tcp() {
 
     SPDLOG_INFO("create the tcp server");
 
-    auto server_socket = std::make_shared<Socket>("1", poll_thread);
-    error_code = server_socket->Listen(kServerPort);
+    auto server_socket = std::make_shared<Socket>("server-01", poll_thread);
+    error_code = server_socket->Initialize(SocketType::TcpServer, true);
+    if (error_code != Success) {
+        return error_code;
+    }
+    error_code = server_socket->Bind(kServerPort);
     if (error_code != Success) {
         return error_code;
     }
     server_socket->SetOnAcceptCallback([](std::shared_ptr<Socket> &sock, sockaddr *addr, int addr_len) {
         HandleNewConnection(sock);
     });
+    error_code = server_socket->Listen(kServerPort);
+    if (error_code != Success) {
+        return error_code;
+    }
 
     std::unique_lock<std::mutex> lock(mutex);
     condition.wait(lock, []() {

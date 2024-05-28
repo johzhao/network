@@ -24,8 +24,8 @@ ErrorCode test_udp() {
 
     SPDLOG_INFO("create the udp server");
 
-    auto server_socket = std::make_shared<Socket>("server", poll_thread);
-    error_code = server_socket->BindUdpSock(kServerPort);
+    auto server_socket = std::make_shared<Socket>("server-01", poll_thread);
+    error_code = server_socket->Initialize(SocketType::Udp, true);
     if (error_code != Success) {
         return error_code;
     }
@@ -35,11 +35,19 @@ ErrorCode test_udp() {
 
         server_socket->Send(buf, addr, addr_len, true);
     });
+    error_code = server_socket->Bind(kServerPort);
+    if (error_code != Success) {
+        return error_code;
+    }
+    error_code = server_socket->Listen();
+    if (error_code != Success) {
+        return error_code;
+    }
 
     SPDLOG_INFO("create the udp client");
 
-    auto client_socket = std::make_shared<Socket>("client", poll_thread);
-    error_code = client_socket->BindUdpSock(kClientPort);
+    auto client_socket = std::make_shared<Socket>("client-01", poll_thread);
+    error_code = client_socket->Initialize(SocketType::Udp, true);
     if (error_code != Success) {
         return error_code;
     }
@@ -47,6 +55,10 @@ ErrorCode test_udp() {
         auto data = std::make_shared<CopyBuffer>(buf);
         SPDLOG_INFO("client received data: '{0}'", data->GetData());
     });
+    error_code = client_socket->Listen();
+    if (error_code != Success) {
+        return error_code;
+    }
 
     SPDLOG_INFO("client send data to server");
 

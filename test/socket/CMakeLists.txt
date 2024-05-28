@@ -17,6 +17,7 @@ target_link_libraries(test_tcp PRIVATE
         dl
         pthread
         spdlog
+        fmt
         socket
         utils
 )

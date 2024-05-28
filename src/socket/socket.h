@@ -10,11 +10,11 @@
 #include "utils/buffer.h"
 #include "utils/buffer_sock.h"
 
-enum SocketType {
-    Socket_Invalid = 0,
-    Socket_Tcp_Server,
-    Socket_Tcp_Client,
-    Socket_Udp,
+enum class SocketType {
+    Invalid = 0,
+    TcpServer,
+    TcpClient,
+    Udp,
 };
 
 class Socket : public std::enable_shared_from_this<Socket> {
@@ -34,17 +34,21 @@ public:
 public:
     const std::string &GetId() const;
 
+    int GetRawSocket() const;
+
+    ErrorCode Initialize(SocketType type, bool async = true);
+
+    ErrorCode Bind(uint16_t port, const std::string &local_ip = "0.0.0.0");
+
     /**
      * 创建tcp客户端并异步连接服务器
      * @param host 目标服务器ip
      * @param port 目标服务器端口
      * @param con_cb 结果回调
      * @param timeout_sec 超时时间
-     * @param local_ip 绑定本地网卡ip
-     * @param local_port 绑定本地网卡端口号
      */
     void Connect(const std::string &host, uint16_t port, const OnErrCallback &error_callback,
-                 float timeout_sec = 5, const std::string &local_ip = "0.0.0.0", uint16_t local_port = 0);
+                 float timeout_sec = 5);
 
     /**
      * 创建tcp监听服务器
@@ -53,15 +57,7 @@ public:
      * @param backlog tcp最大积压数
      * @return 是否成功
      */
-    ErrorCode Listen(uint16_t port, const std::string &local_ip = "0.0.0.0", int backlog = 1024);
-
-    /**
-     * 创建udp套接字,udp是无连接的，所以可以作为服务器和客户端
-     * @param port 绑定的端口为0则随机
-     * @param local_ip 绑定的网卡ip
-     * @return 是否成功
-     */
-    ErrorCode BindUdpSock(uint16_t port, const std::string &local_ip = "0.0.0.0", bool enable_reuse = true);
+    ErrorCode Listen(int backlog = 1024);
 
     /**
      * 包装外部fd，本对象负责close fd
@@ -269,8 +265,9 @@ private:
 private:
     std::string id_;
     std::shared_ptr<PollThread> poll_thread_;
-    SocketType socket_type_ = Socket_Invalid;
+    SocketType socket_type_ = SocketType::Invalid;
     int socket_fd_ = 0;
+    bool is_async_ = true;
     OnErrCallback connect_callback_;
     OnReadCallback read_callback_;
     OnErrCallback error_callback_;
