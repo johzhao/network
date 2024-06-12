@@ -103,6 +103,14 @@ void Session::RegisterSocketCallback() {
 
         strong_self->OnSentResult(buf, send_success);
     });
+    socket_->SetOnClosedCallback([weak_self]() {
+        auto strong_self = weak_self.lock();
+        if (!strong_self) {
+            return;
+        }
+
+        strong_self->OnClosed();
+    });
     socket_->SetOnErrorCallback([weak_self](ErrorCode error_code) {
         auto strong_self = weak_self.lock();
         if (!strong_self) {
